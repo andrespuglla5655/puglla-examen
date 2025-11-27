@@ -3,7 +3,7 @@ name: CI/CD to VPS with Docker Swarm
 on:
   push:
     branches:
-      - puglla
+      - puglla   # tu rama obligatoria del examen
 
 permissions:
   contents: read
@@ -22,45 +22,45 @@ jobs:
       IMAGE_NAME: ghcr.io/andrespuglla5655/puglla
 
     steps:
+
       # 1️⃣ Checkout
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2️⃣ Configurar Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      # 2️⃣ Setup Python (FLASK)
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          node-version: "22"
-          cache: 'npm'
+          python-version: "3.11"
 
       # 3️⃣ Instalar dependencias
       - name: Install dependencies
-        run: npm install
+        run: |
+          pip install -r requirements.txt
 
-      # 4️⃣ Ejecutar tests
+      # 4️⃣ Ejecutar pruebas
       - name: Run tests
-        run: npm test
+        run: pytest -q
 
-      # 5️⃣ Login en GitHub Container Registry
+      # 5️⃣ Login GHCR
       - name: Login to GHCR
         run: |
-          echo ${{ env.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${{ env.GHCR_PAT }}" | docker login ghcr.io -u andrespuglla5655 --password-stdin
 
-      # 6️⃣ Construir imagen Docker con apellido y versión 1.0.5
+      # 6️⃣ Docker Build
       - name: Docker Build
         run: |
           docker build -t $IMAGE_NAME:1.0.5 .
 
-      # 7️⃣ Tag & Push al GHCR
-      - name: Tag & Push Image to GHCR
+      # 7️⃣ Docker Push
+      - name: Tag & Push Image
         run: |
           docker tag $IMAGE_NAME:1.0.5 $IMAGE_NAME:latest
-
           docker push $IMAGE_NAME:1.0.5
           docker push $IMAGE_NAME:latest
 
       # 8️⃣ Copiar stack.yml al VPS
-      - name: Copiar stack.yml al VPS (SCP)
+      - name: Copy stack.yml to VPS
         uses: appleboy/scp-action@v1
         with:
           host: ${{ env.VPS_HOST }}
@@ -70,18 +70,7 @@ jobs:
           source: "stack.yml"
           target: "/home/${{ env.VPS_USER }}/deploy"
 
-      # 9️⃣ Verificar archivo copiado
-      - name: Verificar stack.yml
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.VPS_HOST }}
-          username: ${{ env.VPS_USER }}
-          password: ${{ env.VPS_PASSWORD }}
-          port: ${{ env.VPS_SSH_PORT }}
-          script: |
-            ls -l ~/deploy/stack.yml
-
-      # 🔟 Deploy en el VPS
+      # 🔟 Deploy en VPS
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v1
         with:
@@ -90,8 +79,8 @@ jobs:
           password: ${{ env.VPS_PASSWORD }}
           port: ${{ env.VPS_SSH_PORT }}
           script: |
-            echo ${{ env.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
+            echo "${{ env.GHCR_PAT }}" | docker login ghcr.io -u andrespuglla5655 --password-stdin
+
             docker pull $IMAGE_NAME:latest
 
             docker stack rm puglla || true
