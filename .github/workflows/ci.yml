@@ -3,7 +3,7 @@ name: CI/CD to VPS with Docker Swarm
 on:
   push:
     branches:
-      - puglla
+      - main
 
 permissions:
   contents: read
@@ -19,7 +19,7 @@ jobs:
       VPS_USER: ${{ secrets.VPS_USER }}
       VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
       VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
-      IMAGE_NAME: ghcr.io/andrespuglla5655/puglla-examen
+      IMAGE_NAME: ghcr.io/andrespuglla5655/puglla
 
     steps:
       # 1️⃣ Checkout
