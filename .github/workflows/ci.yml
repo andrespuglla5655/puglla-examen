@@ -21,85 +21,38 @@ jobs:
       VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
 
     steps:
-      # 1️⃣ Checkout del código
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2️⃣ Configurar Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
-      # 3️⃣ Instalar dependencias
       - name: Install dependencies
         run: npm install
 
-      # 4️⃣ Ejecutar tests
       - name: Run tests
         run: npm test
 
-      # 5️⃣ Build de la app (si aplica)
       - name: Build app
         run: npm run build --if-present
 
-      # 6️⃣ Login en GitHub Container Registry
-      - name: Login to GHCR
-        run: echo "${{ env.GHCR_PAT }}" | docker login ghcr.io -u andrespuglla5655 --password-stdin
+      - name: Docker Login to GHCR
+        run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u andrespuglla5655 --password-stdin
 
-      # 7️⃣ Construir imagen Docker
       - name: Docker Build
+        run: docker build -t puglla-examen:1.0.5 .
+
+      - name: Docker Tag & Push
         run: |
-          docker build -t puglla:1.0.5 .
+          IMAGE="ghcr.io/andrespuglla5655/puglla-examen"
+          docker tag puglla-examen:1.0.5 $IMAGE:1.0.5
+          docker tag puglla-examen:1.0.5 $IMAGE:latest
+          docker push $IMAGE:1.0.5
+          docker push $IMAGE:latest
 
-      # 8️⃣ Tag y Push al GHCR
-      - name: Tag & Push Image to GHCR
-        run: |
-           IMAGE="ghcr.io/andrespuglla5655/puglla-examen"
-           docker tag puglla:1.0.5 $IMAGE:1.0.5
-           docker tag puglla:1.0.5 $IMAGE:latest
-
-           docker push $IMAGE:1.0.5
-           docker push $IMAGE:latest
-
-      # 8.1️⃣ Hacer el paquete público y vincularlo al repositorio
-      - name: Make Package Public and Link to Repository
-        run: |
-          PACKAGE_NAME="puglla-examen"
-          REPO_NAME="andrespuglla5655/puglla-examen"
-    
-          echo "🔧 Configurando visibilidad del paquete..."
-    
-          # Hacer el paquete público
-          curl -s -X PATCH \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          https://api.github.com/user/packages/container/${PACKAGE_NAME} \
-          -d '{"visibility":"public"}' || echo "⚠️ No se pudo cambiar visibilidad (puede que ya sea público)"
-    
-          # Vincular el paquete al repositorio
-          echo "🔗 Vinculando paquete al repositorio..."
-          curl -s -X PUT \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          https://api.github.com/orgs/andrespuglla5655/packages/container/${PACKAGE_NAME}/versions/latest \
-          -d "{\"repository\":\"${REPO_NAME}\"}" || \
-          curl -s -X PUT \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          https://api.github.com/user/packages/container/${PACKAGE_NAME} \
-          -d "{\"repository\":\"${REPO_NAME}\"}" || echo "⚠️ No se pudo vincular (puede que ya esté vinculado)"
-    
-          echo "✅ Configuración completada"
-          echo "📦 Paquete disponible en: https://github.com/andrespuglla5655/puglla-examen/pkgs/container/puglla-examen"
-
-      
-      # 9️⃣ Copiar stack.yml al VPS
-      - name: Copiar stack.yml al VPS (SCP)
+      - name: Copy stack.yml to VPS
         uses: appleboy/scp-action@v1
         with:
           host: ${{ env.VPS_HOST }}
@@ -109,8 +62,7 @@ jobs:
           source: "stack.yml"
           target: "/home/${{ env.VPS_USER }}/deploy"
 
-      # 9.1️⃣ Verificar que stack.yml se copió correctamente
-      - name: Verificar copia de stack.yml en VPS
+      - name: Deploy on VPS
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ env.VPS_HOST }}
@@ -118,41 +70,11 @@ jobs:
           password: ${{ env.VPS_PASSWORD }}
           port: ${{ env.VPS_SSH_PORT }}
           script: |
-            if [ -f ~/deploy/stack.yml ]; then
-              echo "✅ stack.yml copiado correctamente"
-            else
-              echo "❌ Error: stack.yml no encontrado en ~/deploy/"
-              exit 1
-            fi
+            echo "Deploying..."
 
-      # 🔟 Deploy en el VPS via SSH
-      - name: Deploy on VPS via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.VPS_HOST }}
-          username: ${{ env.VPS_USER }}
-          password: ${{ env.VPS_PASSWORD }}
-          port: ${{ env.VPS_SSH_PORT }}
-          script: |
-            echo "🚀 Iniciando despliegue en VPS"
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u andrespuglla5655 --password-stdin
 
-            cd ~/deploy
-
-            # Login al GHCR desde el VPS
-            echo "${{ env.GHCR_PAT }}" | docker login ghcr.io -u andrespuglla5655 --password-stdin
-
-            # Descargar la última imagen
             docker pull ghcr.io/andrespuglla5655/puglla-examen:latest
 
-            # Eliminar stack anterior (si existe)
-            docker stack rm puglla || true
-
-            # Esperar que el stack se libere
-            sleep 10
-
-            # Desplegar el nuevo stack limpio
-            docker stack deploy --with-registry-auth -c stack.yml puglla
-
-            # Mostrar estado final
-            docker service ls
-            docker stack ps puglla
+            docker stack deploy --with-registry-auth \
+              -c /home/${{ env.VPS_USER }}/deploy/stack.yml puglla
