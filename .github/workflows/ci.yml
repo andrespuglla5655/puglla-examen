@@ -25,14 +25,24 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: 🏗️ Build & Push Image
+    - name: 🏷️ Prepare Docker metadata
+      id: meta
+      run: |
+        echo "REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+    - name: 🚀 Build and push Docker image
       uses: docker/build-push-action@v6
       with:
         context: .
         push: true
         tags: |
-          ghcr.io/${{ github.repository }}:latest
-          ghcr.io/${{ github.repository }}:1.0.5
+          ghcr.io/${{ env.REPO_LOWER }}:latest
+          ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}
+
+    - name: ✅ Image published successfully
+      run: |
+        echo "Imagen publicada correctamente."
+        echo "Iniciando despliegue..."
 
   deploy:
     needs: build-and-push
@@ -40,7 +50,32 @@ jobs:
     if: github.ref == 'refs/heads/puglla'
 
     steps:
-    - name: 🧪 Conexión SSH
+    - name: 🔎 Verificar secrets requeridos
+      run: |
+        if [ -z "${{ secrets.VPS_PASSWORD }}" ]; then
+          echo "❌ Falta VPS_PASSWORD"
+          exit 1
+        fi
+        if [ -z "${{ secrets.VPS_HOST }}" ]; then
+          echo "❌ Falta VPS_HOST"
+          exit 1
+        fi
+        if [ -z "${{ secrets.VPS_USER }}" ]; then
+          echo "❌ Falta VPS_USER"
+          exit 1
+        fi
+        if [ -z "${{ secrets.VPS_SSH_PORT }}" ]; then
+          echo "❌ Falta VPS_SSH_PORT"
+          exit 1
+        fi
+
+    - name: 🧾 Mostrar variables básicas
+      run: |
+        echo "Host: ${{ secrets.VPS_HOST }}"
+        echo "Usuario: ${{ secrets.VPS_USER }}"
+        echo "Puerto: ${{ secrets.VPS_SSH_PORT }}"
+
+    - name: 🧪 Probar conexión SSH
       uses: appleboy/ssh-action@v1
       with:
         host: ${{ secrets.VPS_HOST }}
@@ -48,9 +83,22 @@ jobs:
         password: ${{ secrets.VPS_PASSWORD }}
         port: ${{ secrets.VPS_SSH_PORT }}
         script: |
-          echo "Deploy iniciando..."
+          echo "Conexión SSH exitosa"
+          hostname
+          whoami
+          uptime
+
+    - name: 🔐 Deploy to Server
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        password: ${{ secrets.VPS_PASSWORD }}
+        port: ${{ secrets.VPS_SSH_PORT }}
+        script: |
+          echo "🚀 Empezando deployment..."
           cd ~/puglla-examen
           docker pull ghcr.io/andrespuglla5655/puglla-examen:latest
           docker stack deploy -c stack.yml puglla
           docker service ls
-          echo "Deploy finalizado correctamente"
+          echo "✅ Deployment completado"
