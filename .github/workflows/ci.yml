@@ -1,103 +1,56 @@
-name: CI/CD to VPS with Docker Swarm
+name: CI/CD Pipeline for GitHub Packages
 
 on:
   push:
     branches:
       - puglla
 
-permissions:
-  contents: read
-  packages: write
-
 jobs:
-  build-test-publish-deploy:
+  build-and-publish:
     runs-on: ubuntu-latest
-
-    env:
-      GHCR_PAT: ${{ secrets.GHCR_PAT }}
-      VPS_HOST: ${{ secrets.VPS_HOST }}
-      VPS_USER: ${{ secrets.VPS_USER }}
-      VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
-      VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
-      IMAGE_NAME: ghcr.io/andrespuglla5655/puglla
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-      # 1️⃣ Checkout
-      - name: Checkout
+      # 1️⃣ Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Configurar Node.js
+      # 2️⃣ Set up Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: '22'
           cache: 'npm'
 
-      # 3️⃣ Instalar dependencias
+      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: npm install
 
-      # 4️⃣ Ejecutar tests
+      # 4️⃣ Run tests
       - name: Run tests
         run: npm test
 
-      # 5️⃣ Login en GitHub Container Registry
-      - name: Login to GHCR
+      # 5️⃣ Log in to GitHub Container Registry
+      - name: Login to GitHub Container Registry
         run: |
-          echo ${{ env.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      # 6️⃣ Construir imagen Docker con apellido y versión 1.0.5
-      - name: Docker Build
+      # 6️⃣ Build Docker image with second surname and version 1.0.5
+      - name: Build Docker image
         run: |
-          docker build -t $IMAGE_NAME:1.0.5 .
+          docker build -t ghcr.io/andrespuglla5655/puglla:1.0.5 .
+          docker tag ghcr.io/andrespuglla5655/puglla:1.0.5 ghcr.io/andrespuglla5655/puglla:latest
 
-      # 7️⃣ Tag & Push al GHCR
-      - name: Tag & Push Image to GHCR
+      # 7️⃣ Publish to GitHub Packages
+      - name: Publish to GitHub Packages
         run: |
-          docker tag $IMAGE_NAME:1.0.5 $IMAGE_NAME:latest
+          docker push ghcr.io/andrespuglla5655/puglla:1.0.5
+          docker push ghcr.io/andrespuglla5655/puglla:latest
 
-          docker push $IMAGE_NAME:1.0.5
-          docker push $IMAGE_NAME:latest
-
-      # 8️⃣ Copiar stack.yml al VPS
-      - name: Copiar stack.yml al VPS (SCP)
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ env.VPS_HOST }}
-          username: ${{ env.VPS_USER }}
-          password: ${{ env.VPS_PASSWORD }}
-          port: ${{ env.VPS_SSH_PORT }}
-          source: "stack.yml"
-          target: "/home/${{ env.VPS_USER }}/deploy"
-
-      # 9️⃣ Verificar archivo copiado
-      - name: Verificar stack.yml
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.VPS_HOST }}
-          username: ${{ env.VPS_USER }}
-          password: ${{ env.VPS_PASSWORD }}
-          port: ${{ env.VPS_SSH_PORT }}
-          script: |
-            ls -l ~/deploy/stack.yml
-
-      # 🔟 Deploy en el VPS
-      - name: Deploy on VPS
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.VPS_HOST }}
-          username: ${{ env.VPS_USER }}
-          password: ${{ env.VPS_PASSWORD }}
-          port: ${{ env.VPS_SSH_PORT }}
-          script: |
-            echo ${{ env.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            docker pull $IMAGE_NAME:latest
-
-            docker stack rm puglla || true
-            sleep 10
-
-            docker stack deploy --with-registry-auth -c ~/deploy/stack.yml puglla
-
-            docker service ls
-            docker stack ps puglla
+      # 8️⃣ Verify package publication
+      - name: Verify package publication
+        run: |
+          echo "Package published successfully to:"
+          echo "https://github.com/andrespuglla5655/puglla/pkgs/container/puglla"
