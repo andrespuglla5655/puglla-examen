@@ -3,7 +3,7 @@ name: CI/CD to VPS with Docker Swarm
 on:
   push:
     branches:
-      - puglla   
+      - main
 
 permissions:
   contents: read
@@ -22,25 +22,24 @@ jobs:
       IMAGE_NAME: ghcr.io/andrespuglla5655/puglla-examen
 
     steps:
-
       # 1️⃣ Checkout
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2️⃣ Configurar Python para FLASK
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      # 2️⃣ Configurar Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.11"
+          node-version: "22"
+          cache: 'npm'
 
       # 3️⃣ Instalar dependencias
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: npm install
 
       # 4️⃣ Ejecutar tests
       - name: Run tests
-        run: pytest -q
+        run: npm test
 
       # 5️⃣ Login en GitHub Container Registry
       - name: Login to GHCR
