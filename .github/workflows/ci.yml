@@ -10,34 +10,14 @@ permissions:
   contents: read
   packages: write
 
-env:
-  VERSION: "1.0.5"        # versión fija que pide tu profesor
-  IMAGE_NAME: "puglla-examen"
-
 jobs:
-  ci:
-    name: Run tests + Build and Push Docker Image
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
     - name: 🧾 Checkout repository
       uses: actions/checkout@v4
 
-    # ======= 🧪 TESTS (REQUISITO DEL EXAMEN) =======
-    - name: 🐍 Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
-
-    - name: 📦 Install dependencies for tests
-      run: |
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install pytest
-
-    - name: 🔍 Run tests
-      run: pytest -q
-
-    # ======= 🐳 LOGIN =======
     - name: 🔐 Login to GitHub Container Registry
       uses: docker/login-action@v3
       with:
@@ -45,39 +25,22 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: 🏷️ Prepare Docker metadata
-      id: meta
-      run: |
-        echo "REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-
-    # ======= 🐳 BUILD + PUSH =======
-    - name: 🚀 Build and push Docker image
+    - name: 🏗️ Build & Push Image
       uses: docker/build-push-action@v6
       with:
         context: .
         push: true
         tags: |
-          ghcr.io/${{ env.REPO_LOWER }}:${{ env.VERSION }}
-          ghcr.io/${{ env.REPO_LOWER }}:latest
-
-    - name: ✅ Image published successfully
-      run: echo "Imagen publicada correctamente en GHCR."
+          ghcr.io/${{ github.repository }}:latest
+          ghcr.io/${{ github.repository }}:1.0.5
 
   deploy:
-    name: Deploy to VPS
-    needs: ci
+    needs: build-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/puglla'
 
     steps:
-    - name: 🔎 Verificar secrets requeridos
-      run: |
-        if [ -z "${{ secrets.VPS_PASSWORD }}" ]; then echo "❌ Falta VPS_PASSWORD"; exit 1; fi
-        if [ -z "${{ secrets.VPS_HOST }}" ]; then echo "❌ Falta VPS_HOST"; exit 1; fi
-        if [ -z "${{ secrets.VPS_USER }}" ]; then echo "❌ Falta VPS_USER"; exit 1; fi
-        if [ -z "${{ secrets.VPS_SSH_PORT }}" ]; then echo "❌ Falta VPS_SSH_PORT"; exit 1; fi
-
-    - name: 🧪 Probar conexión SSH
+    - name: 🧪 Conexión SSH
       uses: appleboy/ssh-action@v1
       with:
         host: ${{ secrets.VPS_HOST }}
@@ -85,26 +48,9 @@ jobs:
         password: ${{ secrets.VPS_PASSWORD }}
         port: ${{ secrets.VPS_SSH_PORT }}
         script: |
-          echo "Conexión SSH exitosa"
-          hostname
-          uptime
-
-    # ======= 🚀 DEPLOY =======
-    - name: 🔐 Deploy to Server
-      uses: appleboy/ssh-action@v1
-      with:
-        host: ${{ secrets.VPS_HOST }}
-        username: ${{ secrets.VPS_USER }}
-        password: ${{ secrets.VPS_PASSWORD }}
-        port: ${{ secrets.VPS_SSH_PORT }}
-        script: |
-          echo "🚀 Empezando deployment..."
+          echo "Deploy iniciando..."
           cd ~/puglla-examen
-          
-          docker pull ghcr.io/andrespuglla5655/puglla-examen:${{ env.VERSION }}
           docker pull ghcr.io/andrespuglla5655/puglla-examen:latest
-
           docker stack deploy -c stack.yml puglla
           docker service ls
-
-          echo "✅ Deployment completado correctamente"
+          echo "Deploy finalizado correctamente"

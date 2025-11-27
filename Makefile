@@ -14,12 +14,11 @@ VERSION=1.0.5
 
 install:
 	@echo "📦 Instalando dependencias..."
-	pip install -r requirements.txt
+	npm install
 
 run:
-	@echo "🚀 Iniciando app Flask..."
-	python app.py
-
+	@echo "🚀 Iniciando app Node en puerto 3000..."
+	npm start
 
 # ============================
 #  🐳 Docker (local)
@@ -30,9 +29,8 @@ docker-build:
 	docker build -t $(APP_NAME):local .
 
 docker-run:
-	@echo "▶️ Ejecutando contenedor en puerto 5000..."
-	docker run -p 5000:5000 $(APP_NAME):local
-
+	@echo "▶️ Ejecutando contenedor en puerto 3000..."
+	docker run -p 3000:3000 $(APP_NAME):local
 
 # ============================
 #  📤 Publicación en GHCR
@@ -49,7 +47,6 @@ docker-push:
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):latest
 
-
 # ============================
 #  🐳 Docker Swarm (VPS)
 # ============================
@@ -61,7 +58,6 @@ deploy:
 		docker pull $(IMAGE):latest && \
 		docker stack deploy --with-registry-auth -c /home/$$VPS_USER/deploy/stack.yml $(APP_NAME) \
 	"
-
 
 # ============================
 #  🧹 Limpieza
