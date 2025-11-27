@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   quinche:
-    image: ghcr.io/adqvelez-cloud/velez-alexis-examen:latest
+    image: ghcr.io/andrespuglla5655/puglla-examen:latest
     deploy:
       replicas: 1
       labels:

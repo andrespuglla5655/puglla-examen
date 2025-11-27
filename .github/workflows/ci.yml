@@ -3,7 +3,7 @@ name: CI/CD to VPS with Docker Swarm
 on:
   push:
     branches:
-      - puglla
+      - main
 
 permissions:
   contents: read
@@ -46,7 +46,7 @@ jobs:
 
       # 6️⃣ Login en GitHub Container Registry
       - name: Login to GHCR
-        run: echo "${{ env.GHCR_PAT }}" | docker login ghcr.io -u adqvelez-cloud --password-stdin
+        run: echo "${{ env.GHCR_PAT }}" | docker login ghcr.io -u andrespuglla5655 --password-stdin
 
       # 7️⃣ Construir imagen Docker
       - name: Docker Build
@@ -56,7 +56,7 @@ jobs:
       # 8️⃣ Tag y Push al GHCR
       - name: Tag & Push Image to GHCR
         run: |
-           IMAGE="ghcr.io/adqvelez-cloud/velez-alexis-examen"
+           IMAGE="ghcr.io/andrespuglla5655/puglla-examen"
            docker tag quinche:1.0.5 $IMAGE:1.0.5
            docker tag quinche:1.0.5 $IMAGE:latest
 
@@ -66,8 +66,8 @@ jobs:
       # 8.1️⃣ Hacer el paquete público y vincularlo al repositorio
       - name: Make Package Public and Link to Repository
         run: |
-          PACKAGE_NAME="velez-alexis-examen"
-          REPO_NAME="adqvelez-cloud/velez-alexis-examen"
+          PACKAGE_NAME="puglla-examen"
+          REPO_NAME="andrespuglla5655/puglla-examen"
     
           echo "🔧 Configurando visibilidad del paquete..."
     
@@ -85,7 +85,7 @@ jobs:
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
-          https://api.github.com/orgs/adqvelez-cloud/packages/container/${PACKAGE_NAME}/versions/latest \
+          https://api.github.com/orgs/andrespuglla5655/packages/container/${PACKAGE_NAME}/versions/latest \
           -d "{\"repository\":\"${REPO_NAME}\"}" || \
           curl -s -X PUT \
           -H "Accept: application/vnd.github+json" \
@@ -95,8 +95,7 @@ jobs:
           -d "{\"repository\":\"${REPO_NAME}\"}" || echo "⚠️ No se pudo vincular (puede que ya esté vinculado)"
     
           echo "✅ Configuración completada"
-          echo "📦 Paquete disponible en: https://github.com/adqvelez-cloud/velez-alexis-examen/pkgs/container/velez-alexis-examen"
-
+          echo "📦 Paquete disponible en: https://github.com/andrespuglla5655/puglla-examen/pkgs/container/puglla-examen"
 
       
       # 9️⃣ Copiar stack.yml al VPS
@@ -140,10 +139,10 @@ jobs:
             cd ~/deploy
 
             # Login al GHCR desde el VPS
-            echo "${{ env.GHCR_PAT }}" | docker login ghcr.io -u adqvelez-cloud --password-stdin
+            echo "${{ env.GHCR_PAT }}" | docker login ghcr.io -u andrespuglla5655 --password-stdin
 
             # Descargar la última imagen
-            docker pull ghcr.io/adqvelez-cloud/velez-alexis-examen:latest
+            docker pull ghcr.io/andrespuglla5655/puglla-examen:latest
 
             # Eliminar stack anterior (si existe)
             docker stack rm quinche || true
