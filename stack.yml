@@ -6,26 +6,20 @@ services:
     deploy:
       replicas: 1
       labels:
-
         - "traefik.enable=true"
 
-        # HTTP → HTTPS
         - "traefik.http.routers.puglla.entrypoints=http"
         - "traefik.http.routers.puglla.rule=Host(`puglla.byronrm.com`)"
         - "traefik.http.middlewares.puglla-https-redirect.redirectscheme.scheme=https"
         - "traefik.http.routers.puglla.middlewares=puglla-https-redirect"
 
-        # HTTPS
         - "traefik.http.routers.puglla-secure.entrypoints=https"
         - "traefik.http.routers.puglla-secure.rule=Host(`puglla.byronrm.com`)"
         - "traefik.http.routers.puglla-secure.tls=true"
         - "traefik.http.routers.puglla-secure.tls.certresolver=http"
         - "traefik.http.routers.puglla-secure.service=puglla"
 
-        # Puerto interno de Node
         - "traefik.http.services.puglla.loadbalancer.server.port=3000"
-
-        # Red pública del Traefik
         - "traefik.docker.network=traefik-public"
 
     networks:
