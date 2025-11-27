@@ -50,7 +50,7 @@ jobs:
         script: |
           echo "Deploy iniciando..."
           cd ~/puglla-examen
-          docker pull ghcr.io/andrespuglla5655/puglla-examen:latest
+          docker pull ghcr.io/${{ github.repository }}:latest
           docker stack deploy -c stack.yml puglla
           docker service ls
           echo "Deploy finalizado correctamente"
