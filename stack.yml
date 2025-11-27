@@ -1,28 +1,29 @@
 version: "3.8"
 
 services:
-  quinche:
+  puglla:
     image: ghcr.io/andrespuglla5655/puglla-examen:latest
     deploy:
       replicas: 1
       labels:
+
         - "traefik.enable=true"
 
         # Enrutamiento HTTP → HTTPS
-        - "traefik.http.routers.quinche.entrypoints=http"
-        - "traefik.http.routers.quinche.rule=Host(`quinche.byronrm.com`)"
-        - "traefik.http.middlewares.quinche-https-redirect.redirectscheme.scheme=https"
-        - "traefik.http.routers.quinche.middlewares=quinche-https-redirect"
+        - "traefik.http.routers.puglla.entrypoints=http"
+        - "traefik.http.routers.puglla.rule=Host(`puglla.byronrm.com`)"
+        - "traefik.http.middlewares.puglla-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.routers.puglla.middlewares=quinche-https-redirect"
 
         # HTTPS con certificado automático Let's Encrypt
-        - "traefik.http.routers.quinche-secure.entrypoints=https"
-        - "traefik.http.routers.quinche-secure.rule=Host(`quinche.byronrm.com`)"
-        - "traefik.http.routers.quinche-secure.tls=true"
-        - "traefik.http.routers.quinche-secure.tls.certresolver=http"
-        - "traefik.http.routers.quinche-secure.service=quinche"
+        - "traefik.http.routers.puglla-secure.entrypoints=https"
+        - "traefik.http.routers.puglla-secure.rule=Host(`puglla.byronrm.com`)"
+        - "traefik.http.routers.puglla-secure.tls=true"
+        - "traefik.http.routers.puglla-secure.tls.certresolver=http"
+        - "traefik.http.routers.puglla-secure.service=puglla"
 
         # Puerto interno donde corre tu app (Node.js → 3000)
-        - "traefik.http.services.quinche.loadbalancer.server.port=3000"
+        - "traefik.http.services.puglla.loadbalancer.server.port=3000"
 
         # Red pública del traefik
         - "traefik.docker.network=traefik-public"
