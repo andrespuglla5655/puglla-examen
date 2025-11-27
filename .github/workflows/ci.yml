@@ -43,7 +43,8 @@ jobs:
 
       # 5️⃣ Login en GitHub Container Registry
       - name: Login to GHCR
-        run: echo "${{ env.GHCR_PAT }}" | docker login ghcr.io -u andrespuglla5655 --password-stdin
+        run: |
+          echo ${{ env.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       # 6️⃣ Construir imagen Docker con apellido y versión 1.0.5
       - name: Docker Build
@@ -89,7 +90,7 @@ jobs:
           password: ${{ env.VPS_PASSWORD }}
           port: ${{ env.VPS_SSH_PORT }}
           script: |
-            echo "${{ env.GHCR_PAT }}" | docker login ghcr.io -u andrespuglla5655 --password-stdin
+            echo ${{ env.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             docker pull $IMAGE_NAME:latest
 
