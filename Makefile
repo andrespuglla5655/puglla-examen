@@ -1,7 +1,12 @@
-# Nombre del proyecto e imagen
-APP_NAME=proyecto-alexis
-GHCR_USER=adqvelez-cloud
+# ============================
+#  🔧 Configuración del proyecto
+# ============================
+
+APP_NAME=puglla-examen
+GHCR_USER=andrespuglla5655
 IMAGE=ghcr.io/$(GHCR_USER)/$(APP_NAME)
+
+VERSION=1.0.5
 
 # ============================
 #  📦 Comandos para desarrollo
@@ -9,41 +14,39 @@ IMAGE=ghcr.io/$(GHCR_USER)/$(APP_NAME)
 
 install:
 	@echo "📦 Instalando dependencias..."
-	npm install
+	pip install -r requirements.txt
 
-build:
-	@echo "🏗️  Generando build..."
-	npm run build
-
-start:
-	@echo "🚀 Iniciando app local..."
-	npm start
+run:
+	@echo "🚀 Iniciando app Flask..."
+	python app.py
 
 
 # ============================
-#  🐳 Comandos Docker (local)
+#  🐳 Docker (local)
 # ============================
 
 docker-build:
-	@echo "🐳 Construyendo imagen Docker..."
+	@echo "🐳 Construyendo imagen Docker local..."
 	docker build -t $(APP_NAME):local .
 
 docker-run:
-	@echo "▶️ Ejecutando contenedor en puerto 3000..."
-	docker run -p 3000:3000 $(APP_NAME):local
+	@echo "▶️ Ejecutando contenedor en puerto 5000..."
+	docker run -p 5000:5000 $(APP_NAME):local
 
 
 # ============================
-#  📤 Publicar en GHCR
+#  📤 Publicación en GHCR
 # ============================
 
 docker-login:
-	@echo "🔐 Loggeando a GHCR..."
-	echo "$$GHCR_TOKEN" | docker login ghcr.io -u $(GHCR_USER) --password-stdin
+	@echo "🔐 Loggeando en GHCR..."
+	echo "$$GHCR_PAT" | docker login ghcr.io -u $(GHCR_USER) --password-stdin
 
 docker-push:
-	@echo "📤 Enviando imagen a GHCR (latest)..."
+	@echo "📤 Publicando imagen en GHCR..."
+	docker tag $(APP_NAME):local $(IMAGE):$(VERSION)
 	docker tag $(APP_NAME):local $(IMAGE):latest
+	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):latest
 
 
@@ -52,16 +55,18 @@ docker-push:
 # ============================
 
 deploy:
-	@echo "🚀 Deploy manual a Docker Swarm..."
-	ssh -p $$VPS_PORT $$VPS_USER@$$VPS_HOST "\
+	@echo "🚀 Desplegando en Docker Swarm..."
+	ssh -p $$VPS_SSH_PORT $$VPS_USER@$$VPS_HOST "\
+		echo \"$$GHCR_PAT\" | docker login ghcr.io -u $(GHCR_USER) --password-stdin && \
 		docker pull $(IMAGE):latest && \
-		docker stack deploy -c /home/$$VPS_USER/deploy/docker-stack.yml $(APP_NAME) \
+		docker stack deploy --with-registry-auth -c /home/$$VPS_USER/deploy/stack.yml $(APP_NAME) \
 	"
+
 
 # ============================
 #  🧹 Limpieza
 # ============================
 
 clean:
-	@echo "🧹 Limpiando..."
+	@echo "🧹 Limpiando Docker..."
 	docker system prune -af
