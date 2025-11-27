@@ -2,103 +2,53 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - puglla
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  packages: write
+    branches: [ "puglla" ]
 
 jobs:
-  build-and-push:
+
+  ci:
+    name: Run Tests + Build Image
     runs-on: ubuntu-latest
 
     steps:
-    - name: 🧾 Checkout repository
-      uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v3
 
-    - name: 🔐 Login to GitHub Container Registry
-      uses: docker/login-action@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        python-version: "3.10"
 
-    - name: 🏷️ Prepare Docker metadata
-      id: meta
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Run tests
+      run: pytest -q
+
+    - name: Log in to GHCR
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Build image
       run: |
-        echo "REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+        docker build -t ghcr.io/${{ github.actor }}/proyecto-puglla:1.0.5 .
 
-    - name: 🚀 Build and push Docker image
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        push: true
-        tags: |
-          ghcr.io/${{ env.REPO_LOWER }}:latest
-          ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}
-
-    - name: ✅ Image published successfully
+    - name: Push image
       run: |
-        echo "Imagen publicada correctamente."
-        echo "Iniciando despliegue..."
+        docker push ghcr.io/${{ github.actor }}/proyecto-puglla:1.0.5
 
-  deploy:
-    needs: build-and-push
+  cd:
+    name: Deploy to VPS
+    needs: ci
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/puglla'
 
     steps:
-    - name: 🔎 Verificar secrets requeridos
-      run: |
-        if [ -z "${{ secrets.VPS_PASSWORD }}" ]; then
-          echo "❌ Falta VPS_PASSWORD"
-          exit 1
-        fi
-        if [ -z "${{ secrets.VPS_HOST }}" ]; then
-          echo "❌ Falta VPS_HOST"
-          exit 1
-        fi
-        if [ -z "${{ secrets.VPS_USER }}" ]; then
-          echo "❌ Falta VPS_USER"
-          exit 1
-        fi
-        if [ -z "${{ secrets.VPS_SSH_PORT }}" ]; then
-          echo "❌ Falta VPS_SSH_PORT"
-          exit 1
-        fi
-
-    - name: 🧾 Mostrar variables básicas
-      run: |
-        echo "Host: ${{ secrets.VPS_HOST }}"
-        echo "Usuario: ${{ secrets.VPS_USER }}"
-        echo "Puerto: ${{ secrets.VPS_SSH_PORT }}"
-
-    - name: 🧪 Probar conexión SSH
-      uses: appleboy/ssh-action@v1
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.VPS_HOST }}
         username: ${{ secrets.VPS_USER }}
-        password: ${{ secrets.VPS_PASSWORD }}
-        port: ${{ secrets.VPS_SSH_PORT }}
+        port: ${{ secrets.VPS_PORT }}
+        key: ${{ secrets.VPS_KEY }}
         script: |
-          echo "Conexión SSH exitosa"
-          hostname
-          whoami
-          uptime
-
-    - name: 🔐 Deploy to Server
-      uses: appleboy/ssh-action@v1
-      with:
-        host: ${{ secrets.VPS_HOST }}
-        username: ${{ secrets.VPS_USER }}
-        password: ${{ secrets.VPS_PASSWORD }}
-        port: ${{ secrets.VPS_SSH_PORT }}
-        script: |
-          echo "🚀 Empezando deployment..."
-          cd ~/puglla-examen
-          docker pull ghcr.io/andrespuglla5655/puglla-examen:latest
-          docker stack deploy -c stack.yml puglla
-          docker service ls
-          echo "✅ Deployment completado"
+          docker pull ghcr.io/${{ github.actor }}/proyecto-puglla:1.0.5
+          docker stack deploy -c /home/${{ secrets.VPS_USER }}/deploy/docker-stack.yml proyecto-puglla
